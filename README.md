@@ -1,3 +1,4 @@
 # 2023Python-FP_growth
 
-T.B.C
+this code still have many issues
+and I want to sleep = =
