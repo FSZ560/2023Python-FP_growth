@@ -1,0 +1,13 @@
+建立 fp-tree :
+
+給定一堆 frozenset 以及每個 frozenset 各自的數量、最小 support num
+建立 head table
+再次掃描原始資料，建立 fp-tree (忽略小於 support num 的資料)
+
+if tree 非單鍊 :
+
+    從 head table 最下方的數字開始，取得每一個前綴路徑，變成一個 frozenset
+    然後再把這堆 frozenset 丟進新的 fp-tree function 來遞迴、給定新的最小 support num (假設正在找以 x 為基底的條件 fp-tree，那最小 support num 就是 head_table[x] * 0.8)
+
+else :
+    對那顆單一路徑的樹計算排列組合
