@@ -1,194 +1,172 @@
-import math
-
-total_count = 0
-
-
-class treeNode:
-    def __init__(self) -> None:
-        self.name = None
-        self.child = []
-        self.parent = None
-        self.value = 0
-
-    def addChild(self, temp):
-        self.child.append(temp)
-        temp.parent = self
+import csv
+import itertools
+import time
 
 
-class header_table_item:
-    def __init__(self, input_name, input_cnt) -> None:
-        self.cnt = input_cnt
-        self.name = input_name
-        self.links = []
-
-    def __repr__(self):
-        return f"item(name={self.name}, cnt={self.cnt})"
-
-
-def insert_data_into_tree(root, item_list, item_list_cnt, header_table):
-    temp = root
-    for num in item_list:
-        found_in_children = False
-        for child in temp.child:
-            if child.name == num:
-                temp = child
-                temp.value += item_list_cnt
-                found_in_children = True
-                break
-        if not found_in_children:
-            new_child = treeNode()
-            new_child.value = item_list_cnt
-            new_child.name = num
-            temp.addChild(new_child)
-            temp = new_child
-            for header_table_item in header_table:
-                if header_table_item.name == new_child.name:
-                    header_table_item.links.append(new_child)
-                    break
+class Node:
+    def __init__(self, num, freq, parent):
+        self.num = num
+        self.freq = freq
+        self.parent = parent
+        self.child = {}
+        self.nxt = None
 
 
-def get_prefix_path(temp):
-    path = []
-    temp = temp.parent
-    while temp.parent is not None:  # Stop one level before root
-        path.append(temp.name)
-        temp = temp.parent
-    return path[::-1]  # Reverse to get path from root to node
+def getFromFile(name):
+    itemSetList = {}
+    with open(name, "r") as file:
+        reader = csv.reader(file)
+        tmp = []
+        for line in reader:  # 遍歷每一行資料，加入 list
+            line = list(filter(None, line))
+            tmp.append(line)
+        for item in tmp:
+            itemSetList[frozenset(item)] = 1
+    return itemSetList
 
 
-# debug
-def print_tree(root, indent=""):
-    print(indent + str(root.name) + " " + str(root.value))
-    for child in root.child:
-        print_tree(child, indent + "    ")
+def buildTree(itemSetList, minSup):
+    headertb = {}
 
+    for itemSet in itemSetList:
+        for item in itemSet:
+            headertb[item] = headertb.get(item, 0) + itemSetList[itemSet]
 
-# debug
-def print_header_table(header_table):
-    for item in header_table:
-        print(item)
-        for link in item.links:
-            print(get_prefix_path(link))
+    # remove item less than minSup
+    headertb = {i: headertb[i] for i in headertb if headertb[i] >= minSup}
 
+    if len(headertb) == 0:
+        return None, None
 
-# turn data into ordered
-def ordered_frequent_item_set(header_table, data):
-    ordered_list = list()
-    for item in header_table:
-        if item.name in data:
-            ordered_list.append(item.name)
-    return ordered_list
+    freqItemSet = set(headertb.keys())
 
+    for item in headertb:
+        headertb[item] = [headertb[item], None]
 
-def is_single_path(root):
-    temp = root
-    while temp is not None:
-        if len(temp.child) > 1:
-            return False
-        elif len(temp.child) == 1:
-            temp = temp.child[0]  # Continue with the only child
-        else:
-            temp = None  # No more children, end the loop
-    return True
+    fpTreeRoot = Node("Null", 1, None)
 
-
-def get_path_size(root):
-    if root is None or len(root.child) == 0:
-        return 0
-    else:
-        size = 0
-        node = root.child[0]  # Start from the first child of root
-        while node is not None:
-            size += 1
-            if len(node.child) > 0:
-                node = node.child[0]  # Continue with the only child
-            else:
-                node = None  # End the loop when no more children
-        return size
-
-
-def C(n, m):
-    return math.factorial(n) // (math.factorial(m) * math.factorial(n - m))
-
-
-def count_ans(root):
-    ret = 0
-    size = get_path_size(root)
-    for item_set_size in range(1, min(size, 5)):
-        for left_size in range(0, item_set_size):
-            ret += C(size - 1, left_size) * C(
-                size - 1 - left_size, item_set_size - left_size
+    for itemSet, cnt in itemSetList.items():
+        item_temp = {}
+        for item in itemSet:
+            if item in freqItemSet:
+                item_temp.update({item: headertb[item][0]})
+        # sorting by descending order
+        items = [
+            i[0]
+            for i in sorted(
+                item_temp.items(), key=lambda p: (p[1], str(p[0])), reverse=True
             )
-    return ret
+        ]
+        updateTree(items, fpTreeRoot, headertb, cnt)
+
+    return fpTreeRoot, headertb
 
 
-# datas => a dict of {frozenset : cnt}
-def build_FP_tree(datas, min_support_num):
-    header_table = []
-    root = treeNode()
-
-    # scan datas first, build header table items
-    # data => frozenset, datas[data] = cnt
-    for data in datas:
-        for num in data:
-            have_add_flag = 0
-            for table_item in header_table:
-                if table_item.name == num:
-                    table_item.cnt += datas[data]
-                    have_add_flag = 1
-                    break
-            if have_add_flag == 0:
-                header_table.append(header_table_item(num, datas[data]))
-
-    # remove header table item that cnt < min_support_num
-    new_header_table = []
-    for table_item in header_table:
-        if int(table_item.cnt) >= int(min_support_num):
-            new_header_table.append(table_item)
-    header_table = new_header_table
-
-    # sort
-    header_table = sorted(header_table, key=lambda item: (-item.cnt, item.name))
-
-    # scan datas second, get frequent item set for each data, then insert this item set into root
-    for data in datas:
-        insert_data_into_tree(
-            root,
-            ordered_frequent_item_set(header_table, data),
-            datas[data],
-            header_table,
-        )
-
-    # if FP tree only have one path
-    if is_single_path(root):
-        global total_count
-        total_count += count_ans(root)
-
-    # FP tree minning
-    else:
-        for item in reversed(header_table):
-            end_list = item.links
-            sub_data = {}
-            for node in end_list:
-                prefix_path = frozenset(get_prefix_path(node))
-                if prefix_path in sub_data:
-                    sub_data[prefix_path] += node.value
-                else:
-                    sub_data[prefix_path] = node.value
-            build_FP_tree(sub_data, item.cnt * 0.8)
+def UpdateHeaderTable(item, node):
+    while item.nxt != None:
+        item = item.nxt
+    item.nxt = node
 
 
-# read original data
-with open("mushroom.dat", "r") as file:
-    datas = {}
-
-    for line in file:
-        numbers = line.split()
-        temp_set = frozenset(numbers)
-        if temp_set in datas:
-            datas[temp_set] += 1
+def updateTree(items, node, headertb, freq):
+    item = items[0]
+    if item not in node.child:
+        node.child[item] = Node(item, freq, node)
+        if not headertb[item][1]:
+            headertb[item][1] = node.child[item]
         else:
-            datas[temp_set] = 1
+            UpdateHeaderTable(headertb[item][1], node.child[item])
+    else:
+        node.child[item].freq += freq
+    if len(items) > 1:
+        updateTree(items[1:], node.child[item], headertb, freq)
 
-    build_FP_tree(datas, 813)
-    print(total_count)
+
+def traceBackToRoot(node, prefix):
+    if node.parent != None:
+        prefix.append(node.num)
+        traceBackToRoot(node.parent, prefix)
+
+
+def findprefix(base, headertb):  # 找到所有前綴路徑
+    node = headertb[base][1]
+    res = {}
+    while node != None:
+        prefix = []
+        traceBackToRoot(node, prefix)
+        res.update({frozenset(prefix[1:]): node.freq})
+        node = node.nxt
+    return res
+
+
+def mine(headertb, minSup, prefix, freqItemList, mp):
+    # sort by frequency in increasing order
+    sortedItemList = [
+        item[0] for item in sorted(headertb.items(), key=lambda p: str(p[1]))
+    ]
+
+    for item in sortedItemList:
+        newfreq = prefix.copy()
+        newfreq.add(item)
+
+        if len(newfreq) > 5:
+            continue
+
+        newfreq = set(sorted(list(newfreq)))
+        freqItemList.append(newfreq)
+
+        conditionalBase = findprefix(item, headertb)
+        sum_freq = sum(conditionalBase.values())
+        mp.update({frozenset(newfreq): sum_freq})
+
+        conditionalTreeRoot, newheadertb = buildTree(conditionalBase, minSup)
+        if newheadertb is not None:
+            mine(newheadertb, minSup, newfreq, freqItemList, mp)
+
+
+def associationRule(mp, minConf):
+    rules = 0
+    for items in mp:
+        for n in range(1, len(items)):
+            for subset in itertools.combinations(items, n):
+                if mp[frozenset(items)] / mp[frozenset(subset)] >= minConf:
+                    rules += 1
+    return rules
+
+
+def fpgrowth(fileName, minSup, minConf):
+    itemSetList = getFromFile(fileName)
+    minSup = len(itemSetList) * minSup
+    fpTreeRoot, headertb = buildTree(itemSetList, minSup)
+    freqitems = []
+    mp = {}
+    mine(headertb, minSup, set(), freqitems, mp)
+    rules = associationRule(mp, minConf)
+    return freqitems, rules
+
+
+if __name__ == "__main__":
+    start_time = time.time()
+    freqitems, rules = fpgrowth("mushroom.csv", 0.1, 0.8)
+    end_time = time.time()
+    print("Total Execution Time: " + str(end_time - start_time) + " seconds.\n")
+
+    cnt = [0, 0, 0, 0, 0]
+    for i in freqitems:
+        if len(i) == 1:
+            cnt[0] += 1
+        elif len(i) == 2:
+            cnt[1] += 1
+        elif len(i) == 3:
+            cnt[2] += 1
+        elif len(i) == 4:
+            cnt[3] += 1
+        elif len(i) == 5:
+            cnt[4] += 1
+
+    print("Frequent Item Sets:")
+    for i in range(0, 5):
+        print("|L^" + str(i + 1) + "|=" + str(cnt[i]))
+
+    print("\n滿足條件的 association rule 數目為 :")
+    print(rules)
