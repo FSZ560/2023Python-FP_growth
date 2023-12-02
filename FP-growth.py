@@ -110,7 +110,7 @@ def mine(headertb, minSup, prefix, freqItemList, mp):
         newfreq.add(item)
 
         if len(newfreq) > 5:
-            continue
+            break
 
         newfreq = set(sorted(list(newfreq)))
         freqItemList.append(newfreq)
