@@ -17,7 +17,7 @@ def getFromFile(name):
     with open(name, "r") as file:
         reader = csv.reader(file)
         tmp = []
-        for line in reader:  # 遍歷每一行資料，加入 list
+        for line in reader:  # Traverse each line of data and add it to the list
             line = list(filter(None, line))
             tmp.append(line)
         for item in tmp:
@@ -88,7 +88,7 @@ def traceBackToRoot(node, prefix):
         traceBackToRoot(node.parent, prefix)
 
 
-def findprefix(base, headertb):  # 找到所有前綴路徑
+def findprefix(base, headertb):  # Find all prefix paths
     node = headertb[base][1]
     res = {}
     while node != None:
@@ -168,5 +168,5 @@ if __name__ == "__main__":
     for i in range(0, 5):
         print("|L^" + str(i + 1) + "|=" + str(cnt[i]))
 
-    print("\n滿足條件的 association rule 數目為 :")
+    print("\nNumber of association rules that meet the conditions:")
     print(rules)
