@@ -109,7 +109,8 @@ def mine(headertb, minSup, prefix, freqItemList, mp):
         newfreq = prefix.copy()
         newfreq.add(item)
 
-        if len(newfreq) > 5:
+        global max_item_num
+        if len(newfreq) > max_item_num:
             break
 
         newfreq = set(sorted(list(newfreq)))
@@ -138,35 +139,41 @@ def fpgrowth(fileName, minSup, minConf):
     itemSetList = getFromFile(fileName)
     minSup = len(itemSetList) * minSup
     fpTreeRoot, headertb = buildTree(itemSetList, minSup)
+
     freqitems = []
     mp = {}
     mine(headertb, minSup, set(), freqitems, mp)
+
+    global checkPoint
+    checkPoint = time.time()
+
     rules = associationRule(mp, minConf)
+
     return freqitems, rules
 
 
 if __name__ == "__main__":
-    start_time = time.time()
-    freqitems, rules = fpgrowth("mushroom.csv", 0.1, 0.8)
-    end_time = time.time()
-    print("Total Execution Time: " + str(end_time - start_time) + " seconds.\n")
+    max_item_num = 5
+    support = 0.1
+    confidence = 0.8
 
-    cnt = [0, 0, 0, 0, 0]
+    start_time = time.time()
+    freqitems, rules = fpgrowth("mushroom.csv", support, confidence)
+    end_time = time.time()
+
+    print("Total Execution Time : " + str(end_time - start_time) + " seconds.")
+    print("i. frequent item set mining : " + str(checkPoint - start_time) + " seconds.")
+    print("ii. association rule mining : " + str(end_time - checkPoint) + " seconds.\n")
+
+    cnt = dict()
     for i in freqitems:
-        if len(i) == 1:
-            cnt[0] += 1
-        elif len(i) == 2:
-            cnt[1] += 1
-        elif len(i) == 3:
-            cnt[2] += 1
-        elif len(i) == 4:
-            cnt[3] += 1
-        elif len(i) == 5:
-            cnt[4] += 1
+        if len(i) not in cnt:
+            cnt[len(i)] = 0
+        cnt[len(i)] += 1
 
     print("Frequent Item Sets:")
-    for i in range(0, 5):
-        print("|L^" + str(i + 1) + "|=" + str(cnt[i]))
+    for i in range(1, max_item_num + 1):
+        print("|L^" + str(i) + "|=" + str(cnt[i]))
 
     print("\nNumber of association rules that meet the conditions:")
     print(rules)
