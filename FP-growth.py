@@ -27,29 +27,25 @@ def getFromFile(name):
 
 def buildTree(itemSetList, minSup):
     headertb = {}
-
     for itemSet in itemSetList:
         for item in itemSet:
             headertb[item] = headertb.get(item, 0) + itemSetList[itemSet]
-
     # remove item less than minSup
     headertb = {i: headertb[i] for i in headertb if headertb[i] >= minSup}
 
     if len(headertb) == 0:
         return None, None
 
-    freqItemSet = set(headertb.keys())
-
     for item in headertb:
         headertb[item] = [headertb[item], None]
 
     fpTreeRoot = Node("Null", 1, None)
-
     for itemSet, cnt in itemSetList.items():
         item_temp = {}
         for item in itemSet:
-            if item in freqItemSet:
+            if item in headertb.keys():
                 item_temp.update({item: headertb[item][0]})
+
         # sorting by descending order
         items = [
             i[0]
