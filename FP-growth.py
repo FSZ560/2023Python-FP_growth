@@ -1,6 +1,7 @@
 import csv
 import itertools
 import time
+import multiprocessing
 
 
 class Node:
@@ -121,13 +122,30 @@ def mine(headertb, minSup, prefix, freqItemList, mp):
             mine(newheadertb, minSup, newfreq, freqItemList, mp)
 
 
+def count(items, mp, minConf):
+    cnt = 0
+    for n in range(1, len(items)):
+        for subset in itertools.combinations(items, n):
+            if mp[frozenset(items)] / mp[frozenset(subset)] >= minConf:
+                cnt += 1
+    return cnt
+
+
+def associationRule_worker(args):
+    items, mp, minConf = args
+    return count(items, mp, minConf)
+
+
 def associationRule(mp, minConf):
     rules = 0
-    for items in mp:
-        for n in range(1, len(items)):
-            for subset in itertools.combinations(items, n):
-                if mp[frozenset(items)] / mp[frozenset(subset)] >= minConf:
-                    rules += 1
+    cpu_num = multiprocessing.cpu_count()
+    pool = multiprocessing.Pool(cpu_num)
+    args_list = [(items, mp, minConf) for items in mp]
+    results = pool.map(associationRule_worker, args_list)
+    pool.close()
+    pool.join()
+
+    rules = sum(results)
     return rules
 
 
@@ -149,7 +167,7 @@ def fpgrowth(fileName, minSup, minConf):
 
 
 if __name__ == "__main__":
-    max_item_num = 5
+    max_item_num = 10
     support = 0.1
     confidence = 0.8
 
